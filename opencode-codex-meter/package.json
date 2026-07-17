@@ -1,0 +1,60 @@
+{
+  "name": "opencode-codex-meter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenCode plugin that reports Codex subscription quota and per-session token usage",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tui": {
+      "import": "./dist/tui/index.js"
+    }
+  },
+  "bin": {
+    "codex-meter": "./dist/cli/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "docs/compatibility.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:tui": "bun run scripts/build-tui.mjs",
+    "build:all": "npm run build && npm run build:tui",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "biome check src test",
+    "lint:fix": "biome check --write src test",
+    "format": "biome format --write src test",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:smoke": "npm run build:all && vitest run --config vitest.smoke.config.ts",
+    "pack:check": "npm run build:all && npm pack --dry-run"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.3",
+    "@opencode-ai/sdk": "1.18.3",
+    "zod": "4.1.8"
+  },
+  "peerDependencies": {
+    "@opentui/solid": ">=0.4.3",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@opentui/solid": "0.4.4",
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "solid-js": "1.9.12",
+    "tsup": "^8.3.5",
+    "typescript": "5.9.2",
+    "vitest": "2.1.8"
+  }
+}
