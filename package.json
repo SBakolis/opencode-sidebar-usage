@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "OpenCode plugin that reports Codex subscription quota and per-session token usage",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SBakolis/opencode-sidebar-usage.git"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "engines": {

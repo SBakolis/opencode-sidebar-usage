@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "release/major"
+      - "release/minor"
+      - "release/patch"
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify tagged commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Select version bump
+        run: |
+          case "$GITHUB_REF_NAME" in
+            release/major) echo "BUMP=major" >> "$GITHUB_ENV" ;;
+            release/minor) echo "BUMP=minor" >> "$GITHUB_ENV" ;;
+            release/patch) echo "BUMP=patch" >> "$GITHUB_ENV" ;;
+            *) exit 1 ;;
+          esac
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+      - name: Bump package version
+        run: npm version "$BUMP" --no-git-tag-version
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(release): v$(node -p \"require('./package.json').version\")"
+          git push origin HEAD:main
+
+      - run: npm run build:all
+      - run: npm publish
