@@ -232,4 +232,4 @@ available on disk but not declared by the pinned v1 SDK OAuth type.
 
 ## License
 
-MIT (see package.json for details).
+MIT (see package.json for details)
