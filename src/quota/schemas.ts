@@ -27,6 +27,8 @@ const WindowSchema = z
     windowSeconds: z.number().optional(),
     duration_seconds: z.number().optional(),
     durationSeconds: z.number().optional(),
+    limit_window_seconds: z.number().optional(),
+    limitWindowSeconds: z.number().optional(),
     // Duration in minutes (converted to seconds)
     window_minutes: z.number().optional(),
     windowMinutes: z.number().optional(),
@@ -37,11 +39,11 @@ const WindowSchema = z
     usedPercent: z.number().optional(),
     percent: z.number().optional(),
     usage_percent: z.number().optional(),
-    // Reset time (ISO string)
-    resets_at: z.string().optional(),
-    resetsAt: z.string().optional(),
-    reset_at: z.string().optional(),
-    resetAt: z.string().optional(),
+    // Reset time — may be an ISO string OR a Unix timestamp (number, seconds)
+    resets_at: z.union([z.string(), z.number()]).optional(),
+    resetsAt: z.union([z.string(), z.number()]).optional(),
+    reset_at: z.union([z.string(), z.number()]).optional(),
+    resetAt: z.union([z.string(), z.number()]).optional(),
     // Reset after (seconds)
     reset_after_seconds: z.number().optional(),
     resetAfterSeconds: z.number().optional(),
@@ -75,6 +77,16 @@ const WhamResponseSchema = z
     rate_limits: z.array(WindowSchema).optional(),
     rateLimits: z.array(WindowSchema).optional(),
     limits: z.array(WindowSchema).optional(),
+    // rate_limit object with primary_window / secondary_window (singular)
+    rate_limit: z
+      .object({
+        primary_window: WindowSchema.nullable().optional(),
+        primaryWindow: WindowSchema.nullable().optional(),
+        secondary_window: WindowSchema.nullable().optional(),
+        secondaryWindow: WindowSchema.nullable().optional(),
+      })
+      .passthrough()
+      .optional(),
     // Plan type
     plan_type: z.string().optional(),
     planType: z.string().optional(),
@@ -103,7 +115,13 @@ export interface WhamParseResult {
  */
 function extractDurationSeconds(w: z.infer<typeof WindowSchema>): number | null {
   // Direct seconds fields
-  const secs = w.window_seconds ?? w.windowSeconds ?? w.duration_seconds ?? w.durationSeconds;
+  const secs =
+    w.window_seconds ??
+    w.windowSeconds ??
+    w.duration_seconds ??
+    w.durationSeconds ??
+    w.limit_window_seconds ??
+    w.limitWindowSeconds;
   if (typeof secs === "number" && secs > 0) return secs;
 
   // Minutes fields — convert to seconds
@@ -125,12 +143,18 @@ function extractUsedPercent(w: z.infer<typeof WindowSchema>): number {
 }
 
 /**
- * Extract reset time (ISO string) from a window object.
+ * Extract reset time from a window object.
+ * Accepts either an ISO string or a Unix timestamp (number, in seconds).
+ * Returns an ISO string or null.
  */
 function extractResetsAt(w: z.infer<typeof WindowSchema>): string | null {
   const val = w.resets_at ?? w.resetsAt ?? w.reset_at ?? w.resetAt;
   if (typeof val === "string" && val.length > 0) {
     return val;
+  }
+  if (typeof val === "number" && Number.isFinite(val) && val > 0) {
+    // Unix timestamp in seconds → ISO string
+    return new Date(val * 1000).toISOString();
   }
   return null;
 }
@@ -186,6 +210,22 @@ export function parseWhamResponse(raw: unknown): WhamParseResult {
 
   const windows = parseWindowsArray(rawWindows);
 
+  // Also extract windows from rate_limit.primary_window / secondary_window
+  // (singular objects, not arrays). The real wham endpoint uses this shape.
+  const rateLimit = data.rate_limit;
+  if (rateLimit) {
+    const primary = rateLimit.primary_window ?? rateLimit.primaryWindow;
+    if (primary) {
+      const parsedPrimary = parseSingleWindow(primary);
+      if (parsedPrimary) windows.push(parsedPrimary);
+    }
+    const secondary = rateLimit.secondary_window ?? rateLimit.secondaryWindow;
+    if (secondary) {
+      const parsedSecondary = parseSingleWindow(secondary);
+      if (parsedSecondary) windows.push(parsedSecondary);
+    }
+  }
+
   // Extract plan type.
   const planType = data.plan_type ?? data.planType ?? data.plan ?? data.subscription ?? null;
   const normalizedPlanType = typeof planType === "string" ? planType : null;
@@ -203,6 +243,17 @@ export function parseWhamResponse(raw: unknown): WhamParseResult {
 }
 
 /**
+ * Parse a single raw window object into a normalized UsageWindow.
+ * Returns null if the window fails schema validation.
+ */
+function parseSingleWindow(item: unknown): UsageWindow | null {
+  if (item === null || item === undefined) return null;
+  const parsed = WindowSchema.safeParse(item);
+  if (!parsed.success) return null;
+  return windowFromParsed(parsed.data);
+}
+
+/**
  * Parse an array of raw window objects into normalized UsageWindow[].
  */
 function parseWindowsArray(arr: unknown[]): UsageWindow[] {
@@ -210,29 +261,37 @@ function parseWindowsArray(arr: unknown[]): UsageWindow[] {
   for (const item of arr) {
     const parsed = WindowSchema.safeParse(item);
     if (!parsed.success) continue;
-
-    const durationSeconds = extractDurationSeconds(parsed.data);
-    if (durationSeconds === null) {
-      // Window without duration info — classify as unknown.
-      result.push({
-        kind: "unknown",
-        usedPercent: extractUsedPercent(parsed.data),
-        windowSeconds: 0,
-        resetsAt: extractResetsAt(parsed.data),
-        resetAfterSeconds: extractResetAfterSeconds(parsed.data),
-      });
-      continue;
-    }
-
-    result.push({
-      kind: identifyWindow(durationSeconds),
-      usedPercent: extractUsedPercent(parsed.data),
-      windowSeconds: durationSeconds,
-      resetsAt: extractResetsAt(parsed.data),
-      resetAfterSeconds: extractResetAfterSeconds(parsed.data),
-    });
+    const w = windowFromParsed(parsed.data);
+    if (w) result.push(w);
   }
   return result;
+}
+
+/**
+ * Build a UsageWindow from a successfully-parsed window object.
+ * Returns null only if the window fails internal validation (shouldn't
+ * happen after a successful Zod parse, but defensive).
+ */
+function windowFromParsed(data: z.infer<typeof WindowSchema>): UsageWindow | null {
+  const durationSeconds = extractDurationSeconds(data);
+  if (durationSeconds === null) {
+    // Window without duration info — classify as unknown.
+    return {
+      kind: "unknown",
+      usedPercent: extractUsedPercent(data),
+      windowSeconds: 0,
+      resetsAt: extractResetsAt(data),
+      resetAfterSeconds: extractResetAfterSeconds(data),
+    };
+  }
+
+  return {
+    kind: identifyWindow(durationSeconds),
+    usedPercent: extractUsedPercent(data),
+    windowSeconds: durationSeconds,
+    resetsAt: extractResetsAt(data),
+    resetAfterSeconds: extractResetAfterSeconds(data),
+  };
 }
 
 /**
