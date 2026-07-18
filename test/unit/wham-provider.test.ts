@@ -224,6 +224,84 @@ describe("parseWhamResponse", () => {
     expect(parseWhamResponse(null).ok).toBe(false);
     expect(parseWhamResponse(42).ok).toBe(false);
   });
+
+  it("parses the real wham response shape (rate_limit.primary_window / secondary_window)", () => {
+    // This is the actual shape returned by https://chatgpt.com/backend-api/wham/usage
+    // captured from a live plus-plan account on 2026-07-18.
+    const realResponse = {
+      user_id: "user-xxx",
+      account_id: "user-xxx",
+      email: "user@example.com",
+      plan_type: "plus",
+      rate_limit: {
+        allowed: true,
+        limit_reached: false,
+        primary_window: {
+          used_percent: 46,
+          limit_window_seconds: 604800,
+          reset_after_seconds: 595692,
+          reset_at: 1784987952,
+        },
+        secondary_window: null,
+      },
+      code_review_rate_limit: null,
+      additional_rate_limits: null,
+      credits: {
+        has_credits: false,
+        unlimited: false,
+        overage_limit_reached: false,
+        balance: "0",
+      },
+      spend_control: { reached: false, individual_limit: null },
+    };
+
+    const result = parseWhamResponse(realResponse);
+    expect(result.ok).toBe(true);
+    expect(result.planType).toBe("plus");
+    expect(result.windows).toHaveLength(1);
+    expect(result.windows[0].kind).toBe("weekly");
+    expect(result.windows[0].usedPercent).toBe(46);
+    expect(result.windows[0].windowSeconds).toBe(604800);
+    expect(result.windows[0].resetAfterSeconds).toBe(595692);
+    // reset_at is a Unix timestamp (number) → converted to ISO string.
+    expect(result.windows[0].resetsAt).toBe("2026-07-25T13:59:12.000Z");
+    expect(result.credits?.hasCredits).toBe(false);
+    expect(result.credits?.balance).toBe("0");
+  });
+
+  it("parses real wham response with both primary and secondary windows", () => {
+    const withBoth = {
+      plan_type: "pro",
+      rate_limit: {
+        primary_window: {
+          used_percent: 62.3,
+          limit_window_seconds: 604800,
+          reset_after_seconds: 345600,
+          reset_at: 1784987952,
+        },
+        secondary_window: {
+          used_percent: 37.5,
+          limit_window_seconds: 18000,
+          reset_after_seconds: 8040,
+          reset_at: 1784987952,
+        },
+      },
+      credits: { has_credits: true, unlimited: false, balance: "14.50" },
+    };
+
+    const result = parseWhamResponse(withBoth);
+    expect(result.ok).toBe(true);
+    expect(result.planType).toBe("pro");
+    expect(result.windows).toHaveLength(2);
+
+    const weekly = result.windows.find((w) => w.kind === "weekly");
+    const fiveHour = result.windows.find((w) => w.kind === "five-hour");
+    expect(weekly).toBeDefined();
+    expect(weekly?.usedPercent).toBe(62.3);
+    expect(fiveHour).toBeDefined();
+    expect(fiveHour?.usedPercent).toBe(37.5);
+    expect(result.credits?.balance).toBe("14.50");
+  });
 });
 
 // ── identifyWindow tests ─────────────────────────────────────────────

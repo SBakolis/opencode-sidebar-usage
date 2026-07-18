@@ -3,8 +3,13 @@
  *
  * Used by <SidebarContent> for the 5-hour and weekly windows.
  * When `percent` is null (no data), renders a muted "unavailable" label.
+ *
+ * IMPORTANT (Solid reactivity): the component function body runs ONCE.
+ * Reads of `props.window` are done inside JSX expressions / createMemo so
+ * that the bar re-renders when the window prop changes.
  */
 
+import { Show, createMemo } from "solid-js";
 import type { UsageWindow } from "../quota/types";
 import type { ThemeColors } from "./theme";
 
@@ -16,22 +21,23 @@ export interface QuotaBarProps {
 }
 
 export function QuotaBar(props: QuotaBarProps) {
-  const percent = props.window ? Math.round(props.window.usedPercent) : null;
-
-  if (percent === null) {
-    return <text style={{ fg: props.colors.textMuted }}>{`${props.label}  unavailable`}</text>;
-  }
-
-  const filled = Math.round((percent / 100) * props.barWidth);
-  const empty = props.barWidth - filled;
-  const barColor = props.colors.quotaColor(percent);
+  const percent = createMemo(() => (props.window ? Math.round(props.window.usedPercent) : null));
 
   return (
-    <text style={{ fg: props.colors.text }}>
-      <span style={{ fg: props.colors.textMuted }}>{`${props.label}  `}</span>
-      <span style={{ fg: barColor }}>{"█".repeat(filled)}</span>
-      <span style={{ fg: props.colors.textMuted }}>{"░".repeat(empty)}</span>
-      <span style={{ fg: barColor }}>{`  ${percent}%`}</span>
-    </text>
+    <Show
+      when={percent() !== null}
+      fallback={<text style={{ fg: props.colors.textMuted }}>{`${props.label}  unavailable`}</text>}
+    >
+      <text style={{ fg: props.colors.text }}>
+        <span style={{ fg: props.colors.textMuted }}>{`${props.label}  `}</span>
+        <span style={{ fg: props.colors.quotaColor(percent() ?? 0) }}>
+          {"█".repeat(Math.round(((percent() ?? 0) / 100) * props.barWidth))}
+        </span>
+        <span style={{ fg: props.colors.textMuted }}>
+          {"░".repeat(props.barWidth - Math.round(((percent() ?? 0) / 100) * props.barWidth))}
+        </span>
+        <span style={{ fg: props.colors.quotaColor(percent() ?? 0) }}>{`  ${percent()}%`}</span>
+      </text>
+    </Show>
   );
 }
