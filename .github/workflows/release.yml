@@ -32,6 +32,8 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
+      - uses: oven-sh/setup-bun@v2
+
       - name: Select version bump from release labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
