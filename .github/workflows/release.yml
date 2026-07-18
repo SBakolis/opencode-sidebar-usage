@@ -1,11 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "release/major"
-      - "release/minor"
-      - "release/patch"
+  pull_request:
+    types: [closed]
 
 permissions:
   contents: write
@@ -17,12 +14,17 @@ concurrency:
 
 jobs:
   release:
+    # Only run when a PR is merged. The release bump is selected from
+    # the `release:major` / `release:minor` / `release:patch` labels on
+    # the merged PR. PRs without one of these labels are skipped.
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: main
 
       - uses: actions/setup-node@v6
         with:
@@ -30,17 +32,32 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
-      - name: Verify tagged commit is on main
-        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-
-      - name: Select version bump
+      - name: Select version bump from release labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          case "$GITHUB_REF_NAME" in
-            release/major) echo "BUMP=major" >> "$GITHUB_ENV" ;;
-            release/minor) echo "BUMP=minor" >> "$GITHUB_ENV" ;;
-            release/patch) echo "BUMP=patch" >> "$GITHUB_ENV" ;;
-            *) exit 1 ;;
-          esac
+          set -euo pipefail
+          LABELS=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '.[].name')
+          echo "PR labels:"
+          echo "$LABELS"
+
+          has_label() { printf '%s\n' "$LABELS" | grep -Fxq -- "$1"; }
+
+          BUMP=""
+          if has_label "release:major"; then
+            BUMP=major
+          elif has_label "release:minor"; then
+            BUMP=minor
+          elif has_label "release:patch"; then
+            BUMP=patch
+          else
+            echo "No release:major / release:minor / release:patch label on PR #${PR_NUMBER}; skipping release."
+            exit 1
+          fi
+
+          echo "Selected bump: $BUMP"
+          echo "BUMP=$BUMP" >> "$GITHUB_ENV"
 
       - run: npm ci
       - run: npm run typecheck
