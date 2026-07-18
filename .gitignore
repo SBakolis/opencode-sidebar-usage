@@ -1,5 +1,11 @@
 # OS files
 .DS_Store
 
+# Dependencies and package-manager state
+node_modules/
+.npm/
+
 # Build artifacts
+dist/
+coverage/
 *.tsbuildinfo

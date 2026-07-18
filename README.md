@@ -3,6 +3,16 @@
 An [OpenCode](https://opencode.ai) plugin that reports **Codex subscription
 quota** and **per-session token usage** — without spending a model turn.
 
+## Installation
+
+```bash
+opencode plugin opencode-codex-meter --global
+```
+
+This one command installs the package and configures both targets: the server
+tool and the TUI sidebar. No local `file://` URLs or manual configuration are
+required.
+
 ## What it reports
 
 1. **Codex subscription quota** — 5-hour and weekly usage windows with
@@ -23,41 +33,6 @@ These are **independent measurements**:
   They are always available, even when quota data is not.
 
 Never infer quota consumption from token counts.
-
-## Installation
-
-### From npm (when published)
-
-Add to your `opencode.json`:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-codex-meter"]
-}
-```
-
-### From local path
-
-```json
-{
-  "plugin": ["./path/to/opencode-codex-meter"]
-}
-```
-
-Or install the packed tarball:
-
-```bash
-npm install /path/to/opencode-codex-meter-0.1.0.tgz
-```
-
-Then reference in `opencode.json`:
-
-```json
-{
-  "plugin": ["opencode-codex-meter"]
-}
-```
 
 ## Configuration
 
@@ -199,8 +174,20 @@ without notice. The plugin:
 - Node.js ≥ 20 (or Bun).
 - The plugin uses the v1 plugin API (`Hooks.event`, `Hooks.tool`).
 
-See [docs/compatibility.md](./docs/compatibility.md) for the full
-compatibility reference with captured type fixtures and source permalinks.
+### Compatibility details
+
+The plugin aggregates the message-level `AssistantMessage.tokens` fields
+(`input`, `output`, `reasoning`, and `cache.read`/`cache.write`) and uses
+`ToolContext.sessionID` as the current-session source. It reads the OpenAI
+OAuth entry from `auth.json` using `CODEX_METER_AUTH_PATH`,
+`$XDG_DATA_HOME/opencode/auth.json`, or
+`$HOME/.local/share/opencode/auth.json`; `OPENCODE_AUTH_CONTENT` is parsed
+defensively when present but is not a supported contract.
+
+The ChatGPT wham endpoint is undocumented and may change. Runtime schema
+validation treats quota failures as non-fatal, so session token reporting
+continues. The optional OAuth `accountId` is read defensively because it is
+available on disk but not declared by the pinned v1 SDK OAuth type.
 
 ## Troubleshooting
 
@@ -230,8 +217,9 @@ compatibility reference with captured type fixtures and source permalinks.
 ### SDK incompatibility
 
 - Verify you're using `@opencode-ai/plugin` and `@opencode-ai/sdk` 1.18.x.
-- Check [docs/compatibility.md](./docs/compatibility.md) for verified
-  contracts.
+- Confirm that the v1 plugin API provides `Hooks.event`, `Hooks.tool`,
+  message-level token fields, and `ToolContext.sessionID` as described
+  above.
 
 ## Known Limitations
 

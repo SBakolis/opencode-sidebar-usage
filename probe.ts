@@ -1,6 +1,6 @@
 /**
  * Compile-only probe. Verifies that the pinned OpenCode plugin/SDK
- * packages expose the contract documented in docs/compatibility.md.
+ * packages expose the pinned contracts used by this package.
  *
  * This file is NOT shipped. It exists so Checkpoint 0 can prove every
  * SDK type we rely on is present and structurally what we expect.

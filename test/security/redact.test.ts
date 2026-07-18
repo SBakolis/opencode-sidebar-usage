@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { redact, redactDeep, sanitizeError } from "../../src/redact";
@@ -173,19 +174,22 @@ describe("secret-leak scan", () => {
   });
 
   it("packed tarball contains no leaked secrets", () => {
-    // Pack and inspect the tarball.
-    const tarballDir = resolve(import.meta.dirname, "../..");
+    const packageDir = resolve(import.meta.dirname, "../..");
+    const tarballDir = mkdtempSync(join(tmpdir(), "opencode-codex-meter-pack-"));
     try {
-      execFileSync("npm", ["pack", "--silent"], {
-        cwd: tarballDir,
-        encoding: "utf-8",
-        timeout: 30_000,
-      });
-      const tarballs = readdirSync(tarballDir).filter((f) => f.endsWith(".tgz"));
-      if (tarballs.length === 0) return; // Skip if packing failed.
+      const tarballName = execFileSync(
+        "npm",
+        ["pack", "--silent", "--pack-destination", tarballDir],
+        {
+          cwd: packageDir,
+          encoding: "utf-8",
+          timeout: 30_000,
+        },
+      ).trim();
+      expect(tarballName).toMatch(/\.tgz$/);
 
       // Extract tarball listing.
-      const tarballPath = join(tarballDir, tarballs[0]!);
+      const tarballPath = join(tarballDir, tarballName);
       const listing = execFileSync("tar", ["-tzf", tarballPath], { encoding: "utf-8" });
 
       // Check that no test fixtures with secrets are in the tarball.
@@ -195,12 +199,8 @@ describe("secret-leak scan", () => {
         expect(listing).not.toContain(path);
       }
     } finally {
-      // Clean up tarball.
       try {
-        const tarballs = readdirSync(tarballDir).filter((f) => f.endsWith(".tgz"));
-        for (const t of tarballs) {
-          execFileSync("rm", [join(tarballDir, t)]);
-        }
+        rmSync(tarballDir, { recursive: true, force: true });
       } catch {
         // Ignore cleanup errors.
       }

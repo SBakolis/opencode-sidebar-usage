@@ -5,8 +5,6 @@
 ### Files changed
 - `package.json` — minimal private package with `@opencode-ai/plugin@1.18.3`,
   `@opencode-ai/sdk@1.18.3`, `typescript@5.9.2`, `zod@4.1.8` installed.
-- `docs/compatibility.md` — full compatibility reference with pinned versions,
-  captured type fixtures, source permalinks, and known risks.
 - `tsconfig.probe.json` — strict compile-only probe configuration.
 - `probe.ts` — compile-only probe that exercises every SDK contract the
   plugin will rely on (Plugin shape, Hooks.event dispatch for the five
@@ -50,8 +48,8 @@
 
 ### Remaining risks or deviations
 - The wham endpoint is unsupported by OpenAI and may change. Mitigated
-  by runtime Zod validation with additive tolerance and a documented
-  failure-degradation table in `docs/compatibility.md`.
+  by runtime Zod validation with additive tolerance and non-fatal
+  failure handling.
 - `auth.json` on macOS may or may not honor `XDG_DATA_HOME`. We try
   both `$XDG_DATA_HOME/opencode/auth.json` and
   `$HOME/.local/share/opencode/auth.json` in that order.
@@ -363,8 +361,7 @@ security test coverage.
   But the access token IS valid — it's just the account ID that's missing.
 - **`OPENCODE_AUTH_CONTENT` treated defensively**: if set, we try to
   parse it. On parse failure, we silently fall through to file-based
-  resolution. We do NOT document or rely on this env var (per
-  docs/compatibility.md risk note).
+  resolution. We do NOT document or rely on this env var.
 - **No caching in AuthReader**: `readCredentials()` re-reads from the
   source on every call. The QuotaProvider (Checkpoint 5) will cache the
   result with a TTL and handle re-reading after cache expiry.
@@ -413,10 +410,6 @@ stale-if-error fallback, and stable warning codes.
   configuration variables, toast/tool/CLI usage with sample output,
   auth/privacy behavior, unsupported endpoint warning, supported
   versions, troubleshooting, known limitations.
-- `docs/architecture.md` — module boundaries, data flow diagram,
-  key invariants.
-- `docs/manual-smoke-test.md` — 11-step manual smoke test script
-  with checkboxes for recording results.
 - `SECURITY.md` (from Checkpoint 9) — sensitive-data handling,
   graceful degradation table, redaction policy.
 

@@ -5,7 +5,7 @@
  * entry in `auth.json`. Never returns, retains, or logs the refresh
  * token. Never writes to `auth.json`. Never refreshes the token.
  *
- * Credential resolution order (verified in docs/compatibility.md):
+ * Credential resolution order:
  * 1. OPENCODE_AUTH_CONTENT (unverified, defensive parse)
  * 2. CODEX_METER_AUTH_PATH (plugin-specific override)
  * 3. $XDG_DATA_HOME/opencode/auth.json

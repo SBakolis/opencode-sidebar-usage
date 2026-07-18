@@ -1,33 +1,39 @@
 {
   "name": "opencode-codex-meter",
   "version": "0.1.0",
-  "private": true,
   "description": "OpenCode plugin that reports Codex subscription quota and per-session token usage",
+  "license": "MIT",
   "type": "module",
+  "main": "./dist/index.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "opencode": ">=1.0.0 <2.0.0"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./server": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
     "./tui": {
-      "import": "./dist/tui/index.js"
+      "import": "./dist/tui/index.js",
+      "types": "./dist/tui/index.d.ts"
     }
   },
   "bin": {
-    "codex-meter": "./dist/cli/main.js"
+    "codex-meter": "dist/cli/main.js"
   },
   "files": [
     "dist",
     "README.md",
-    "SECURITY.md",
-    "docs/compatibility.md"
+    "SECURITY.md"
   ],
   "scripts": {
     "build": "tsup",
-    "build:tui": "bun run scripts/build-tui.mjs",
+    "build:tui": "tsc -p tsconfig.tui.json && bun run scripts/build-tui.mjs",
     "build:all": "npm run build && npm run build:tui",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "biome check src test",

@@ -25,7 +25,7 @@ const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 /**
  * Normalize a single token value to a safe non-negative integer.
  *
- * Policy (documented in docs/compatibility.md):
+ * Policy:
  * - number, finite, >= 0, integer         → returned as-is
  * - number, finite, >= 0, fractional      → floored
  * - number, finite, negative              → 0 (clamped, not an error)
