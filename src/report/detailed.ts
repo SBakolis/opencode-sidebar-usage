@@ -20,6 +20,7 @@
  */
 
 import type { Report, ReportModel } from "./build";
+import { formatResetCredits } from "./reset-credits";
 
 /**
  * Format a number with comma-separated thousands.
@@ -100,6 +101,11 @@ function formatQuotaSection(report: Report): string {
     const pct = Math.round(w.usedPercent);
     const reset = formatResetDuration(w.resetAfterSeconds);
     lines.push(`  Unknown (${w.windowSeconds}s): ${pct}% used · resets in ${reset}`);
+  }
+
+  lines.push("", "Usage limit resets");
+  for (const line of formatResetCredits(q.resetCredits, q.status === "stale")) {
+    lines.push(line ? `  ${line}` : "");
   }
 
   return `${lines.join("\n")}\n`;

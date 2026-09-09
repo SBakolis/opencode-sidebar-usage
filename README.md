@@ -9,10 +9,23 @@ quota** and **per-session token usage** — without spending a model turn.
   quota bars (5h and weekly windows) and per-model token usage, updating in
   real time as tokens stream.
 
+  Available manual usage limit resets appear below the quota bars, with
+  the limits they restore and expiration dates in your local time zone.
+  Reset information refreshes with quota data (every 90 seconds by default).
+
   ```text
   ┌─ Codex Meter ────────────────────────────────┐
   │ 5h quota      [████████░░░░░░░░░░░░] 37%      │
   │ Weekly quota  [████████████░░░░░░░░] 62%      │
+  │                                               │
+  │ Usage limit resets                            │
+  │   2 available                                 │
+  │                                               │
+  │   Full reset (Weekly + 5 hr)                   │
+  │   Expires Oct 4, 8:37 AM                       │
+  │                                               │
+  │   Full reset (Weekly + 5 hr)                   │
+  │   Expires Oct 5, 7:21 AM                       │
   │                                               │
   │ openai/gpt-5.5  (5 msgs)                      │
   │   Input        184,230                        │
@@ -37,6 +50,10 @@ quota** and **per-session token usage** — without spending a model turn.
 
 Quota data comes from the ChatGPT backend and may be unavailable (the plugin
 keeps working with token totals only). Token totals are always available.
+If reset details are unavailable, the plugin still shows the known count.
+An unavailable count is shown as unavailable, never as zero. Cached reset
+data is labeled stale after a failed quota refresh. The sidebar only displays
+resets; use the Codex usage page to redeem one.
 
 ## Install
 
@@ -119,7 +136,9 @@ All settings are optional environment variables:
   `~/.local/share/opencode/auth.json`.
 - Never reads, stores, or logs the `refresh` token.
 - Never writes to `auth.json` or refreshes OAuth credentials.
-- The only network destination is `https://chatgpt.com/backend-api/wham/usage`.
+- Makes read-only requests to `https://chatgpt.com/backend-api/wham/usage`
+  and, when resets are available, `/backend-api/wham/rate-limit-reset-credits`
+  on the same host. Never redeems a reset.
 
 See [SECURITY.md](./SECURITY.md) for the full security policy.
 
