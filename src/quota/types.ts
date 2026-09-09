@@ -40,20 +40,6 @@ export interface CreditsInfo {
   readonly balance: string | null;
 }
 
-/** Display-only details for an available manual usage reset. */
-export interface ResetCredit {
-  readonly resetType: string;
-  readonly title: string | null;
-  readonly expiresAt: string | null;
-}
-
-export interface ResetCreditsInfo {
-  /** Authoritative server count; the detail list may be incomplete. */
-  readonly availableCount: number;
-  /** null means details could not be fetched or validated. */
-  readonly credits: ResetCredit[] | null;
-}
-
 /**
  * A complete quota snapshot. This is the normalized representation
  * that all report formatters consume.
@@ -67,7 +53,6 @@ export interface QuotaSnapshot {
   readonly weekly: UsageWindow | null;
   readonly unknownWindows: UsageWindow[];
   readonly credits: CreditsInfo | null;
-  readonly resetCredits: ResetCreditsInfo | null;
   readonly warningCode: string | null;
 }
 
@@ -88,7 +73,6 @@ export function noQuotaSnapshot(
     weekly: null,
     unknownWindows: [],
     credits: null,
-    resetCredits: null,
     warningCode,
   };
 }

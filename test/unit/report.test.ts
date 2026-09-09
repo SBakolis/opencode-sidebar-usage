@@ -64,7 +64,6 @@ function okQuota(overrides: Partial<QuotaSnapshot> = {}): QuotaSnapshot {
     },
     unknownWindows: [],
     credits: { hasCredits: true, unlimited: false, balance: "14.50" },
-    resetCredits: null,
     warningCode: null,
     ...overrides,
   };
@@ -431,18 +430,6 @@ describe("formatDetailed", () => {
 // ── formatJson tests ──────────────────────────────────────────────────
 
 describe("formatJson", () => {
-  it("includes reset information in JSON and detailed reports", () => {
-    const resetCredits = {
-      availableCount: 2,
-      credits: [{ resetType: "codex_rate_limits", title: "Full reset", expiresAt: null }],
-    };
-    const report = makeReport("s1", usageMap(), okQuota({ resetCredits }));
-    expect(toJsonReport(report).quota?.resetCredits).toEqual(resetCredits);
-    expect(formatDetailed(report)).toContain("Usage limit resets\n  2 available");
-    expect(formatDetailed(report)).toContain("Full reset (Weekly + 5 hr)");
-    expect(formatDetailed(report)).toContain("No expiration");
-  });
-
   it("has schemaVersion: 1", () => {
     const report = makeReport("s1", usageMap(), null);
     const json = toJsonReport(report);

@@ -9,7 +9,6 @@
  * provider; the session usage contains only token counts.
  */
 
-import type { ResetCreditsInfo } from "../quota/types";
 import type { Report } from "./build";
 
 /**
@@ -40,7 +39,6 @@ export interface JsonReport {
     readonly weekly: object | null;
     readonly unknownWindows: object[];
     readonly credits: object | null;
-    readonly resetCredits: ResetCreditsInfo | null;
     readonly warningCode: string | null;
   } | null;
   readonly isWarning: boolean;
@@ -76,7 +74,6 @@ export function toJsonReport(report: Report): JsonReport {
           weekly: report.quota.weekly,
           unknownWindows: report.quota.unknownWindows,
           credits: report.quota.credits,
-          resetCredits: report.quota.resetCredits,
           warningCode: report.quota.warningCode,
         }
       : null,

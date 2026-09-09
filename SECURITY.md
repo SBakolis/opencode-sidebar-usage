@@ -24,12 +24,6 @@ protects it.
   The response contains usage percentages and reset times, not
   credentials.
 
-- **Manual reset details** — when usage reports available resets, the plugin
-  reads `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`.
-  It retains only the available count and display details (reset type,
-  sanitized title, expiration) for available, unexpired, plan-supported resets.
-  Reset IDs, profile fields, and redemption history are discarded.
-
 ### What the plugin never does
 
 - **Never writes to `auth.json`** — the plugin has no auth-write
@@ -42,10 +36,8 @@ protects it.
 - **Never sends telemetry** — no analytics, no usage reporting, no
   phone-home.
 - **Never makes unexpected network requests** — the only network
-  destinations are `https://chatgpt.com/backend-api/wham/usage` and
-  `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`, and only
-  when credentials are available. Both use GET; the plugin never redeems
-  or purchases resets.
+  destination is `https://chatgpt.com/backend-api/wham/usage`, and only
+  when credentials are available.
 - **Never executes install-time code** — the package has no
   `postinstall`, `preinstall`, or other lifecycle scripts.
 
@@ -64,8 +56,8 @@ The `src/redact.ts` module provides:
 
 ### Unsupported endpoint risk
 
-The ChatGPT backend usage and reset-details endpoints are
-**undocumented and unsupported** by OpenAI. They may change shape, move,
+The `https://chatgpt.com/backend-api/wham/usage` endpoint is
+**undocumented and unsupported** by OpenAI. It may change shape, move,
 or disappear without notice. The plugin:
 
 - Validates the response at runtime with a tolerant Zod schema.
@@ -73,8 +65,6 @@ or disappear without notice. The plugin:
 - Preserves unknown windows rather than discarding them.
 - Treats any failure (401/403/429/5xx/timeout/malformed) as
   non-fatal — session token reporting continues independently.
-- Keeps quota and the known reset count if the optional reset-details
-  request fails, times out, or changes schema.
 - Does not cache `unauthenticated` for the full TTL (uses a shorter
   30-second negative cache).
 

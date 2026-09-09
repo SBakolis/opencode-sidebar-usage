@@ -329,108 +329,6 @@ describe("identifyWindow", () => {
 // ── WhamProvider tests ───────────────────────────────────────────────
 
 describe("WhamProvider", () => {
-  const usageWithResets = { ...normalResponse, rate_limit_reset_credits: { available_count: 2 } };
-  const resetDetails = {
-    available_count: 2,
-    credits: [
-      {
-        id: "private-credit-id",
-        reset_type: "codex_rate_limits",
-        status: "available",
-        title: "Full reset",
-        expires_at: "2026-10-04T03:00:00.123456Z",
-      },
-    ],
-  };
-
-  it("fetches reset details using the existing auth and keeps the authoritative count", async () => {
-    const { provider, transport } = makeProvider(
-      makeTransport([{ body: usageWithResets }, { body: resetDetails }]),
-    );
-    const snap = await provider.fetch();
-    expect(snap.status).toBe("ok");
-    expect(snap.resetCredits?.availableCount).toBe(2);
-    expect(snap.resetCredits?.credits).toHaveLength(1);
-    expect(snap.resetCredits?.credits?.[0]?.expiresAt).toBe("2026-10-04T03:00:00.123Z");
-    expect(transport.calls).toHaveLength(2);
-    expect(transport.calls[1]?.url).toBe(
-      "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits",
-    );
-    expect(transport.calls[1]?.headers).toEqual(transport.calls[0]?.headers);
-    expect(JSON.stringify(snap)).not.toContain("private-credit-id");
-    expect(JSON.stringify(snap)).not.toContain(FAKE_ACCESS);
-    expect(JSON.stringify(snap)).not.toContain(FAKE_ACCOUNT);
-  });
-
-  it("skips the detail request when no resets are available", async () => {
-    const { provider, transport } = makeProvider(
-      makeTransport([
-        { body: { ...normalResponse, rate_limit_reset_credits: { available_count: 0 } } },
-      ]),
-    );
-    expect((await provider.fetch()).resetCredits).toEqual({ availableCount: 0, credits: [] });
-    expect(transport.calls).toHaveLength(1);
-  });
-
-  it("uses the newer detail count if a reset was redeemed between requests", async () => {
-    const { provider } = makeProvider(
-      makeTransport([{ body: usageWithResets }, { body: { available_count: 0, credits: [] } }]),
-    );
-    expect((await provider.fetch()).resetCredits).toEqual({ availableCount: 0, credits: [] });
-  });
-
-  it.each([401, 403, 404, 429, 503])(
-    "keeps fresh quota and the reset count when details return HTTP %s",
-    async (status) => {
-      const { provider } = makeProvider(makeTransport([{ body: usageWithResets }, { status }]));
-      const snap = await provider.fetch();
-      expect(snap.status).toBe("ok");
-      expect(snap.fiveHour?.usedPercent).toBe(37.5);
-      expect(snap.resetCredits).toEqual({ availableCount: 2, credits: null });
-    },
-  );
-
-  it("keeps the summary on malformed detail schemas", async () => {
-    const { provider } = makeProvider(
-      makeTransport([{ body: usageWithResets }, { body: { credits: "changed" } }]),
-    );
-    expect((await provider.fetch()).resetCredits).toEqual({ availableCount: 2, credits: null });
-  });
-
-  it.each(["network", "json", "timeout", "body-timeout"])(
-    "keeps quota and count after a detail %s failure",
-    async (failure) => {
-      const usageTransport = makeTransport([{ body: usageWithResets }]);
-      const transport: HttpTransport = {
-        async fetch(url, options) {
-          if (url.endsWith("/usage")) return usageTransport.fetch(url, options);
-          expect(options.method).toBe("GET");
-          if (failure === "network") throw new Error("offline");
-          const onAbort = () =>
-            new Promise<never>((_resolve, reject) => {
-              options.signal.addEventListener("abort", () =>
-                reject(new DOMException("Aborted", "AbortError")),
-              );
-            });
-          if (failure === "timeout") return onAbort();
-          return {
-            ok: true,
-            status: 200,
-            json: async () => {
-              if (failure === "body-timeout") return onAbort();
-              throw new Error("invalid JSON");
-            },
-            text: async () => "",
-          };
-        },
-      };
-      const { provider } = makeProvider(transport, goodCreds(), makeClock(1750000000000), 10);
-      const snap = await provider.fetch();
-      expect(snap.status).toBe("ok");
-      expect(snap.resetCredits).toEqual({ availableCount: 2, credits: null });
-    },
-  );
-
   it("fetches and normalizes a normal response", async () => {
     const { provider, transport } = makeProvider(makeTransport([{ body: normalResponse }]));
     const snap = await provider.fetch();
@@ -444,7 +342,6 @@ describe("WhamProvider", () => {
     expect(snap.weekly?.usedPercent).toBe(62.3);
     expect(snap.credits?.balance).toBe("14.50");
     expect(snap.warningCode).toBeNull();
-    expect(snap.resetCredits).toBeNull();
 
     // Verify request.
     expect(transport.calls).toHaveLength(1);

@@ -109,7 +109,6 @@ export class CachedProvider implements QuotaProvider {
         weekly: null,
         unknownWindows: [],
         credits: null,
-        resetCredits: null,
         warningCode: "UNAVAILABLE",
       };
     }

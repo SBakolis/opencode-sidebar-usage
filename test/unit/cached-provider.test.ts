@@ -31,7 +31,6 @@ function makeSnapshot(
       },
       unknownWindows: [],
       credits: { hasCredits: true, unlimited: false, balance: "14.50" },
-      resetCredits: null,
       warningCode: null,
     };
   }
@@ -67,32 +66,6 @@ function makeConfig(overrides: Partial<CachedProviderConfig> = {}): CachedProvid
 // ── Tests ─────────────────────────────────────────────────────────────
 
 describe("CachedProvider", () => {
-  it("caches reset details, preserves them as stale on failure, and updates after redemption", async () => {
-    let time = 1000;
-    const resetCredits = {
-      availableCount: 2,
-      credits: [{ resetType: "codex_rate_limits", title: "Full reset", expiresAt: null }],
-    };
-    const inner = makeInner([
-      { ...makeSnapshot("ok"), resetCredits },
-      makeSnapshot("unavailable"),
-      { ...makeSnapshot("ok"), resetCredits: { availableCount: 0, credits: [] } },
-    ]);
-    const provider = new CachedProvider(inner, {
-      clock: { now: () => time },
-      config: makeConfig({ ttlMs: 100 }),
-    });
-    expect((await provider.fetch()).resetCredits).toEqual(resetCredits);
-    expect((await provider.fetch()).resetCredits).toEqual(resetCredits);
-    expect(inner.calls).toBe(1);
-    time += 200;
-    const stale = await provider.fetch();
-    expect(stale.status).toBe("stale");
-    expect(stale.resetCredits).toEqual(resetCredits);
-    time += 200;
-    expect((await provider.fetch()).resetCredits).toEqual({ availableCount: 0, credits: [] });
-  });
-
   it("cache hit avoids a second network call", async () => {
     const inner = makeInner([makeSnapshot("ok")]);
     const provider = new CachedProvider(inner, {

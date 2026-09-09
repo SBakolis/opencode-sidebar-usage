@@ -4,7 +4,6 @@
  * Composes:
  * - Title: "Codex Meter"
  * - Quota section: 5h and weekly bars + reset info
- * - Available manual usage resets with expiry dates
  * - Token section: per-model table + total
  *
  * Handles degraded states:
@@ -21,7 +20,6 @@
 import { Show, createMemo } from "solid-js";
 import type { Report } from "../report/build";
 import { formatResetDuration } from "../report/detailed";
-import { formatResetCredits } from "../report/reset-credits";
 import { QuotaBar } from "./quota-bar";
 import type { ThemeColors } from "./theme";
 import { TokenTable } from "./token-table";
@@ -93,17 +91,6 @@ export function SidebarContent(props: SidebarContentProps) {
           <text
             style={{ fg: props.colors.textMuted, marginTop: 1 }}
           >{`Quota: ${quota()?.status}`}</text>
-        </Show>
-
-        <Show when={showQuota()}>
-          <box style={{ flexDirection: "column", marginTop: 1 }}>
-            <text style={{ fg: props.colors.textMuted }}>Usage limit resets</text>
-            <text style={{ fg: props.colors.text }}>
-              {formatResetCredits(quota()?.resetCredits ?? null, quota()?.status === "stale").join(
-                "\n",
-              )}
-            </text>
-          </box>
         </Show>
 
         <box style={{ flexDirection: "column", marginTop: 1 }}>
