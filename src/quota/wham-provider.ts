@@ -3,6 +3,7 @@
  * ChatGPT backend endpoint.
  *
  * URL: GET https://chatgpt.com/backend-api/wham/usage
+ * Reset details: GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
  * Headers:
  *   Authorization: Bearer <access-token>
  *   ChatGPT-Account-Id: <account-id>   (only if accountId is present)
@@ -23,6 +24,7 @@
  */
 
 import type { Credentials } from "./auth-reader";
+import { parseResetCreditsDetails } from "./reset-credits";
 import { parseWhamResponse } from "./schemas";
 import type {
   Clock,
@@ -30,11 +32,13 @@ import type {
   HttpTransport,
   QuotaProvider,
   QuotaSnapshot,
+  ResetCreditsInfo,
   UsageWindow,
 } from "./types";
 import { WarningCode, noQuotaSnapshot } from "./types";
 
 const WHAM_URL = "https://chatgpt.com/backend-api/wham/usage";
+const RESET_CREDITS_URL = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
 
 /**
  * Configuration for the wham provider.
@@ -65,6 +69,7 @@ function buildSnapshot(
   windows: UsageWindow[],
   planType: string | null,
   credits: QuotaSnapshot["credits"],
+  resetCredits: ResetCreditsInfo | null,
   fetchedAt: string,
 ): QuotaSnapshot {
   const fiveHour = windows.find((w) => w.kind === "five-hour") ?? null;
@@ -80,6 +85,7 @@ function buildSnapshot(
     weekly,
     unknownWindows,
     credits,
+    resetCredits,
     warningCode: null,
   };
 }
@@ -182,6 +188,31 @@ export class WhamProvider implements QuotaProvider {
 
     // Build the snapshot.
     const fetchedAt = new Date(this.deps.clock.now()).toISOString();
-    return buildSnapshot(parsed.windows, parsed.planType, parsed.credits, fetchedAt);
+    let resetCredits = parsed.resetCredits;
+    if (resetCredits !== null && resetCredits.availableCount > 0) {
+      // A failed detail lookup must not discard quota or the known reset count.
+      resetCredits = (await this.fetchResetCredits(headers)) ?? resetCredits;
+    }
+    return buildSnapshot(parsed.windows, parsed.planType, parsed.credits, resetCredits, fetchedAt);
+  }
+
+  private async fetchResetCredits(
+    headers: Record<string, string>,
+  ): Promise<ResetCreditsInfo | null> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.deps.config.timeoutMs);
+    try {
+      const response = await this.deps.transport.fetch(RESET_CREDITS_URL, {
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      return parseResetCreditsDetails(await response.json(), this.deps.clock.now());
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }
