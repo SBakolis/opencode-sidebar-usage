@@ -1,5 +1,6 @@
 /**
- * QuotaBar — renders a single quota window as label + progress bar + percentage.
+ * QuotaBar — renders a single quota window as label + progress bar +
+ * percentage, plus an optional muted reset-countdown suffix ("resets 4h 5m").
  *
  * Used by <SidebarContent> for the 5-hour and weekly windows.
  * When `percent` is null (no data), renders a muted "unavailable" label.
@@ -18,6 +19,7 @@ export interface QuotaBarProps {
   window: UsageWindow | null;
   colors: ThemeColors;
   barWidth: number;
+  reset?: string | null;
 }
 
 export function QuotaBar(props: QuotaBarProps) {
@@ -37,6 +39,9 @@ export function QuotaBar(props: QuotaBarProps) {
           {"░".repeat(props.barWidth - Math.round(((percent() ?? 0) / 100) * props.barWidth))}
         </span>
         <span style={{ fg: props.colors.quotaColor(percent() ?? 0) }}>{`  ${percent()}%`}</span>
+        <Show when={props.reset}>
+          <span style={{ fg: props.colors.textMuted }}>{`  ${props.reset}`}</span>
+        </Show>
       </text>
     </Show>
   );

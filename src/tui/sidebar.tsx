@@ -3,7 +3,7 @@
  *
  * Composes:
  * - Title: "Codex Meter"
- * - Quota section: 5h and weekly bars + reset info
+ * - Quota section: 5h and weekly bars with inline reset countdowns
  * - Token section: per-model table + total
  *
  * Handles degraded states:
@@ -19,7 +19,7 @@
 
 import { Show, createMemo } from "solid-js";
 import type { Report } from "../report/build";
-import { formatResetDuration } from "../report/detailed";
+import { resetDurationLabel } from "./compute";
 import { QuotaBar } from "./quota-bar";
 import type { ThemeColors } from "./theme";
 import { TokenTable } from "./token-table";
@@ -33,6 +33,12 @@ export interface SidebarContentProps {
 export function SidebarContent(props: SidebarContentProps) {
   // Reactive: re-evaluates whenever props.report changes.
   const quota = createMemo(() => props.report?.quota ?? null);
+  const fiveHourReset = createMemo(() =>
+    resetDurationLabel(quota()?.fiveHour ?? null, quota()?.fetchedAt ?? null, Date.now()),
+  );
+  const weeklyReset = createMemo(() =>
+    resetDurationLabel(quota()?.weekly ?? null, quota()?.fetchedAt ?? null, Date.now()),
+  );
   const showQuota = createMemo(() => {
     const q = quota();
     return (
@@ -72,18 +78,15 @@ export function SidebarContent(props: SidebarContentProps) {
               window={quota()?.fiveHour ?? null}
               colors={props.colors}
               barWidth={14}
+              reset={fiveHourReset()}
             />
             <QuotaBar
               label="week "
               window={quota()?.weekly ?? null}
               colors={props.colors}
               barWidth={14}
+              reset={weeklyReset()}
             />
-            <Show when={quota()?.fiveHour?.resetAfterSeconds != null}>
-              <text style={{ fg: props.colors.textMuted }}>
-                {`       resets ${formatResetDuration(quota()?.fiveHour?.resetAfterSeconds ?? null)}`}
-              </text>
-            </Show>
           </box>
         </Show>
 

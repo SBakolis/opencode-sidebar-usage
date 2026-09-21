@@ -10,18 +10,18 @@ quota** and **per-session token usage** — without spending a model turn.
   real time as tokens stream.
 
   ```text
-  ┌─ Codex Meter ────────────────────────────────┐
-  │ 5h quota      [████████░░░░░░░░░░░░] 37%      │
-  │ Weekly quota  [████████████░░░░░░░░] 62%      │
-  │                                               │
-  │ openai/gpt-5.5  (5 msgs)                      │
-  │   Input        184,230                        │
-  │   Output         8,491                        │
-  │   Reasoning     21,048                        │
-  │   Cache read   421,120                        │
-  │   Cache write       0                         │
-  │   Total        634,889                        │
-  └───────────────────────────────────────────────┘
+  ┌─ Codex Meter ───────────────────────────────────────────┐
+  │ 5h quota      [████████░░░░░░░░░░░░] 37%  resets 2h 14m │
+  │ Weekly quota  [████████████░░░░░░░░] 62%  resets 5d 5h  │
+  │                                                         │
+  │ openai/gpt-5.5  (5 msgs)                                │
+  │   Input        184,230                                  │
+  │   Output         8,491                                  │
+  │   Reasoning     21,048                                  │
+  │   Cache read   421,120                                  │
+  │   Cache write       0                                   │
+  │   Total        634,889                                  │
+  └─────────────────────────────────────────────────────────┘
   ```
 
 - **`codex_usage` tool** — ask the agent to call it for a detailed report
