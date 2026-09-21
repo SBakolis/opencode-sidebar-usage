@@ -8,8 +8,9 @@
  * No JSX, no Solid, no side effects — fully unit-testable.
  */
 
-import type { QuotaSnapshot } from "../quota/types";
+import type { QuotaSnapshot, UsageWindow } from "../quota/types";
 import { type Report, buildReport } from "../report/build";
+import { formatResetDuration } from "../report/detailed";
 import { SessionStore } from "../session/aggregate";
 import { type SdkMessage, messageToSnapshot } from "../session/opencode-adapter";
 
@@ -30,4 +31,53 @@ export function computeReport(
 
   const usage = store.getSessionUsage(sessionID);
   return buildReport(sessionID, usage, quota, options);
+}
+
+/**
+ * Live "resets 4h 5m" label for a usage window, or null when no reset
+ * info is available. Prefers the absolute `resetsAt` timestamp; falls
+ * back to `fetchedAt + resetAfterSeconds` so a cached snapshot doesn't
+ * show a stale countdown. Clamped to 0 ("resets now") once past.
+ */
+export function resetDurationLabel(
+  window: UsageWindow | null,
+  fetchedAt: string | null,
+  nowMs: number,
+): string | null {
+  if (!window) return null;
+
+  let remainingSeconds: number | null = null;
+
+  const resetsAtMs = window.resetsAt !== null ? Date.parse(window.resetsAt) : Number.NaN;
+  if (!Number.isNaN(resetsAtMs)) {
+    remainingSeconds = (resetsAtMs - nowMs) / 1000;
+  } else if (window.resetAfterSeconds !== null) {
+    const fetchedAtMs = fetchedAt !== null ? Date.parse(fetchedAt) : Number.NaN;
+    remainingSeconds = Number.isNaN(fetchedAtMs)
+      ? window.resetAfterSeconds
+      : window.resetAfterSeconds + (fetchedAtMs - nowMs) / 1000;
+  }
+
+  if (remainingSeconds === null) return null;
+  return `resets ${formatResetDuration(Math.max(0, Math.round(remainingSeconds)))}`;
+}
+
+export type ResetPlacement = "inline" | "below";
+
+/**
+ * Decide whether a reset label fits inline on its quota bar line
+ * (`label␣␣bar␣␣NN%␣␣reset`) or must render on its own line below.
+ * `availableWidth` is the bar's container content width in cells;
+ * null means unknown → assume inline fits.
+ */
+export function resetPlacement(
+  labelLength: number,
+  barWidth: number,
+  percent: number,
+  resetLabel: string,
+  availableWidth: number | null,
+): ResetPlacement {
+  if (availableWidth === null) return "inline";
+  const inlineWidth = labelLength + 2 + barWidth + 2 + `${percent}%`.length + 2 + resetLabel.length;
+  return inlineWidth <= availableWidth ? "inline" : "below";
 }

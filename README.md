@@ -14,27 +14,27 @@ quota** and **per-session token usage** — without spending a model turn.
   Reset information refreshes with quota data (every 90 seconds by default).
 
   ```text
-  ┌─ Codex Meter ────────────────────────────────┐
-  │ 5h quota      [████████░░░░░░░░░░░░] 37%      │
-  │ Weekly quota  [████████████░░░░░░░░] 62%      │
-  │                                               │
-  │ Usage limit resets                            │
-  │   2 available                                 │
-  │                                               │
-  │   Full reset (Weekly + 5 hr)                   │
-  │   Expires Oct 4, 8:37 AM                       │
-  │                                               │
-  │   Full reset (Weekly + 5 hr)                   │
-  │   Expires Oct 5, 7:21 AM                       │
-  │                                               │
-  │ openai/gpt-5.5  (5 msgs)                      │
-  │   Input        184,230                        │
-  │   Output         8,491                        │
-  │   Reasoning     21,048                        │
-  │   Cache read   421,120                        │
-  │   Cache write       0                         │
-  │   Total        634,889                        │
-  └───────────────────────────────────────────────┘
+  ┌─ Codex Meter ───────────────────────────────────────────┐
+  │ 5h quota      [████████░░░░░░░░░░░░] 37%  resets 2h 14m │
+  │ Weekly quota  [████████████░░░░░░░░] 62%  resets 5d 5h  │
+  │                                                         │
+  │ Usage limit resets                                      │
+  │   2 available                                           │
+  │                                                         │
+  │   Full reset (Weekly + 5 hr)                            │
+  │   Expires Oct 4, 8:37 AM                                │
+  │                                                         │
+  │   Full reset (Weekly + 5 hr)                            │
+  │   Expires Oct 5, 7:21 AM                                │
+  │                                                         │
+  │ openai/gpt-5.5  (5 msgs)                                │
+  │   Input        184,230                                  │
+  │   Output         8,491                                  │
+  │   Reasoning     21,048                                  │
+  │   Cache read   421,120                                  │
+  │   Cache write       0                                   │
+  │   Total        634,889                                  │
+  └─────────────────────────────────────────────────────────┘
   ```
 
 - **`codex_usage` tool** — ask the agent to call it for a detailed report

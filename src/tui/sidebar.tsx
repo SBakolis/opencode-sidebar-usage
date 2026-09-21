@@ -3,7 +3,7 @@
  *
  * Composes:
  * - Title: "Codex Meter"
- * - Quota section: 5h and weekly bars + reset info
+ * - Quota section: 5h and weekly bars with inline reset countdowns
  * - Available manual usage resets with expiry dates
  * - Token section: per-model table + total
  *
@@ -18,10 +18,11 @@
  * changes are done inside JSX expressions or via `createMemo`.
  */
 
-import { Show, createMemo } from "solid-js";
+import type { BoxRenderable } from "@opentui/core";
+import { Show, createMemo, createSignal } from "solid-js";
 import type { Report } from "../report/build";
-import { formatResetDuration } from "../report/detailed";
 import { formatResetCredits } from "../report/reset-credits";
+import { resetDurationLabel } from "./compute";
 import { QuotaBar } from "./quota-bar";
 import type { ThemeColors } from "./theme";
 import { TokenTable } from "./token-table";
@@ -35,6 +36,22 @@ export interface SidebarContentProps {
 export function SidebarContent(props: SidebarContentProps) {
   // Reactive: re-evaluates whenever props.report changes.
   const quota = createMemo(() => props.report?.quota ?? null);
+  const fiveHourReset = createMemo(() =>
+    resetDurationLabel(quota()?.fiveHour ?? null, quota()?.fetchedAt ?? null, Date.now()),
+  );
+  const weeklyReset = createMemo(() =>
+    resetDurationLabel(quota()?.weekly ?? null, quota()?.fetchedAt ?? null, Date.now()),
+  );
+
+  // Measured content width of the panel (host controls the sidebar width).
+  // null until the first layout pass; QuotaBar treats null as "fits inline".
+  // Panel width minus border (2) and padding (2).
+  const [contentWidth, setContentWidth] = createSignal<number | null>(null);
+  const trackPanelSize = (el: BoxRenderable) => {
+    const update = () => setContentWidth(el.width > 4 ? el.width - 4 : null);
+    el.onSizeChange = update;
+    update();
+  };
   const showQuota = createMemo(() => {
     const q = quota();
     return (
@@ -55,6 +72,7 @@ export function SidebarContent(props: SidebarContentProps) {
       }
     >
       <box
+        ref={trackPanelSize}
         style={{
           border: true,
           borderColor: props.colors.border,
@@ -74,18 +92,17 @@ export function SidebarContent(props: SidebarContentProps) {
               window={quota()?.fiveHour ?? null}
               colors={props.colors}
               barWidth={14}
+              reset={fiveHourReset()}
+              maxWidth={contentWidth()}
             />
             <QuotaBar
               label="week "
               window={quota()?.weekly ?? null}
               colors={props.colors}
               barWidth={14}
+              reset={weeklyReset()}
+              maxWidth={contentWidth()}
             />
-            <Show when={quota()?.fiveHour?.resetAfterSeconds != null}>
-              <text style={{ fg: props.colors.textMuted }}>
-                {`       resets ${formatResetDuration(quota()?.fiveHour?.resetAfterSeconds ?? null)}`}
-              </text>
-            </Show>
           </box>
         </Show>
 
