@@ -13,7 +13,8 @@
  */
 
 import { z } from "zod";
-import type { CreditsInfo, UsageWindow } from "./types";
+import { parseResetCreditsSummary } from "./reset-credits";
+import type { CreditsInfo, ResetCreditsInfo, UsageWindow } from "./types";
 import { identifyWindow } from "./types";
 
 /**
@@ -96,6 +97,7 @@ const WhamResponseSchema = z
     credits: CreditsSchema.optional(),
     extra_usage: CreditsSchema.optional(),
     extraUsage: CreditsSchema.optional(),
+    rate_limit_reset_credits: z.unknown().optional(),
   })
   .passthrough();
 
@@ -107,6 +109,7 @@ export interface WhamParseResult {
   readonly windows: UsageWindow[];
   readonly planType: string | null;
   readonly credits: CreditsInfo | null;
+  readonly resetCredits: ResetCreditsInfo | null;
 }
 
 /**
@@ -187,13 +190,14 @@ export function parseWhamResponse(raw: unknown): WhamParseResult {
       windows: arrayResult,
       planType: null,
       credits: null,
+      resetCredits: null,
     };
   }
 
   // Otherwise parse as an object.
   const parsed = WhamResponseSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, windows: [], planType: null, credits: null };
+    return { ok: false, windows: [], planType: null, credits: null, resetCredits: null };
   }
 
   const data = parsed.data;
@@ -239,6 +243,7 @@ export function parseWhamResponse(raw: unknown): WhamParseResult {
     windows,
     planType: normalizedPlanType,
     credits,
+    resetCredits: parseResetCreditsSummary(data.rate_limit_reset_credits),
   };
 }
 
