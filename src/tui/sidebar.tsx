@@ -17,7 +17,8 @@
  * changes are done inside JSX expressions or via `createMemo`.
  */
 
-import { Show, createMemo } from "solid-js";
+import type { BoxRenderable } from "@opentui/core";
+import { Show, createMemo, createSignal } from "solid-js";
 import type { Report } from "../report/build";
 import { resetDurationLabel } from "./compute";
 import { QuotaBar } from "./quota-bar";
@@ -39,6 +40,16 @@ export function SidebarContent(props: SidebarContentProps) {
   const weeklyReset = createMemo(() =>
     resetDurationLabel(quota()?.weekly ?? null, quota()?.fetchedAt ?? null, Date.now()),
   );
+
+  // Measured content width of the panel (host controls the sidebar width).
+  // null until the first layout pass; QuotaBar treats null as "fits inline".
+  // Panel width minus border (2) and padding (2).
+  const [contentWidth, setContentWidth] = createSignal<number | null>(null);
+  const trackPanelSize = (el: BoxRenderable) => {
+    const update = () => setContentWidth(el.width > 4 ? el.width - 4 : null);
+    el.onSizeChange = update;
+    update();
+  };
   const showQuota = createMemo(() => {
     const q = quota();
     return (
@@ -59,6 +70,7 @@ export function SidebarContent(props: SidebarContentProps) {
       }
     >
       <box
+        ref={trackPanelSize}
         style={{
           border: true,
           borderColor: props.colors.border,
@@ -79,6 +91,7 @@ export function SidebarContent(props: SidebarContentProps) {
               colors={props.colors}
               barWidth={14}
               reset={fiveHourReset()}
+              maxWidth={contentWidth()}
             />
             <QuotaBar
               label="week "
@@ -86,6 +99,7 @@ export function SidebarContent(props: SidebarContentProps) {
               colors={props.colors}
               barWidth={14}
               reset={weeklyReset()}
+              maxWidth={contentWidth()}
             />
           </box>
         </Show>

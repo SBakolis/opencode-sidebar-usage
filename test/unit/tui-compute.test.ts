@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type UsageWindow, noQuotaSnapshot } from "../../src/quota/types";
 import type { SdkMessage } from "../../src/session/opencode-adapter";
-import { computeReport, resetDurationLabel } from "../../src/tui/compute";
+import { computeReport, resetDurationLabel, resetPlacement } from "../../src/tui/compute";
 
 function assistantMsg(
   id: string,
@@ -200,5 +200,30 @@ describe("resetDurationLabel", () => {
   it("formats multi-day resets as days and hours", () => {
     const w = window({ kind: "weekly", resetsAt: isoAt(5 * 86_400 + 5 * 3600) });
     expect(resetDurationLabel(w, isoAt(0), NOW)).toBe("resets 5d 5h");
+  });
+});
+
+describe("resetPlacement", () => {
+  // Line: label(5) + 2 + bar(14) + 2 + "45%"(3) + 2 + "resets 4h 5m"(12) = 40.
+  const LABEL_LEN = 5;
+  const BAR_WIDTH = 14;
+  const RESET = "resets 4h 5m";
+
+  it("returns inline when the full line fits exactly", () => {
+    expect(resetPlacement(LABEL_LEN, BAR_WIDTH, 45, RESET, 40)).toBe("inline");
+  });
+
+  it("returns below when one cell short", () => {
+    expect(resetPlacement(LABEL_LEN, BAR_WIDTH, 45, RESET, 39)).toBe("below");
+  });
+
+  it("assumes inline when available width is unknown", () => {
+    expect(resetPlacement(LABEL_LEN, BAR_WIDTH, 45, RESET, null)).toBe("inline");
+  });
+
+  it("accounts for percent digit count", () => {
+    // "100%" is one cell wider than "45%" → same width now overflows.
+    expect(resetPlacement(LABEL_LEN, BAR_WIDTH, 100, RESET, 40)).toBe("below");
+    expect(resetPlacement(LABEL_LEN, BAR_WIDTH, 100, RESET, 41)).toBe("inline");
   });
 });

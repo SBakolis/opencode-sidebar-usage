@@ -61,3 +61,23 @@ export function resetDurationLabel(
   if (remainingSeconds === null) return null;
   return `resets ${formatResetDuration(Math.max(0, Math.round(remainingSeconds)))}`;
 }
+
+export type ResetPlacement = "inline" | "below";
+
+/**
+ * Decide whether a reset label fits inline on its quota bar line
+ * (`label␣␣bar␣␣NN%␣␣reset`) or must render on its own line below.
+ * `availableWidth` is the bar's container content width in cells;
+ * null means unknown → assume inline fits.
+ */
+export function resetPlacement(
+  labelLength: number,
+  barWidth: number,
+  percent: number,
+  resetLabel: string,
+  availableWidth: number | null,
+): ResetPlacement {
+  if (availableWidth === null) return "inline";
+  const inlineWidth = labelLength + 2 + barWidth + 2 + `${percent}%`.length + 2 + resetLabel.length;
+  return inlineWidth <= availableWidth ? "inline" : "below";
+}
