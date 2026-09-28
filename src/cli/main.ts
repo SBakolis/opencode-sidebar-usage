@@ -15,19 +15,19 @@
 
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import { loadConfig } from "../config";
-import {
-  AuthReader,
-  type Clock,
-  type EnvSource,
-  type FsSource,
-  type HomeDirProvider,
-} from "../quota/auth-reader";
+import { AuthReader } from "../quota/auth-reader";
 import { CachedProvider } from "../quota/cached-provider";
-import type { HttpTransport } from "../quota/types";
 import { WhamProvider } from "../quota/wham-provider";
 import { buildReport } from "../report/build";
 import { formatDetailed } from "../report/detailed";
 import { formatJson } from "../report/json";
+import {
+  makeClock,
+  makeEnvSource,
+  makeFsSource,
+  makeHomeDirProvider,
+  makeHttpTransport,
+} from "../runtime";
 import { SessionStore } from "../session/aggregate";
 import { type SdkMessagesResult, resultToSnapshots } from "../session/opencode-adapter";
 
@@ -116,56 +116,6 @@ function parseArgs(argv: string[]): CliArgs | null {
   return result;
 }
 
-// ── Runtime adapters (same as plugin) ─────────────────────────────────
-
-function makeFsSource(): FsSource {
-  return {
-    async readFile(path: string): Promise<string | null> {
-      try {
-        const { readFile } = await import("node:fs/promises");
-        return await readFile(path, "utf-8");
-      } catch (e) {
-        const err = e as NodeJS.ErrnoException;
-        if (err.code === "ENOENT") return null;
-        throw e;
-      }
-    },
-  };
-}
-
-function makeEnvSource(): EnvSource {
-  return { get: (key: string) => process.env[key] };
-}
-
-function makeHomeDirProvider(): HomeDirProvider {
-  return { home: () => process.env.HOME ?? process.env.USERPROFILE ?? "" };
-}
-
-function makeClock(): Clock {
-  return { now: () => Date.now() };
-}
-
-function makeHttpTransport(): HttpTransport {
-  return {
-    async fetch(
-      url: string,
-      options: { method: string; headers: Record<string, string>; signal: AbortSignal },
-    ) {
-      const resp = await globalThis.fetch(url, {
-        method: options.method,
-        headers: options.headers,
-        signal: options.signal,
-      });
-      return {
-        ok: resp.ok,
-        status: resp.status,
-        json: () => resp.json(),
-        text: () => resp.text(),
-      };
-    },
-  };
-}
-
 // ── Main ──────────────────────────────────────────────────────────────
 
 async function run(args: CliArgs): Promise<number> {
@@ -210,7 +160,8 @@ async function run(args: CliArgs): Promise<number> {
   }
 
   // --session mode: fetch session messages and build report.
-  const sessionID = args.sessionID!;
+  const sessionID = args.sessionID;
+  if (!sessionID) return 2;
   const client = createOpencodeClient({ baseUrl: args.serverUrl });
 
   let result: SdkMessagesResult;
