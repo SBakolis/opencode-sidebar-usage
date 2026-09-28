@@ -2,9 +2,7 @@
  * opencode-codex-meter — TUI plugin entry point.
  *
  * Wires the tested TUI modules into the OpenCode TUI plugin lifecycle:
- * - Loads config and builds the quota provider chain (same pattern as
- *   src/index.ts — duplicated because TUI and server run in separate
- *   processes and cannot share module instances).
+ * - Loads config and builds its own quota provider chain.
  * - Registers a `sidebar_content` slot renderer that shows quota bars
  *   and per-model token usage for the active session.
  * - Subscribes to SDK events to keep signals fresh: message updates
@@ -15,87 +13,23 @@
  */
 
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui";
-import { createSignal } from "solid-js";
-import { type ConfigEnv, loadConfig } from "../config";
-import {
-  AuthReader,
-  type Clock,
-  type EnvSource,
-  type FsSource,
-  type HomeDirProvider,
-} from "../quota/auth-reader";
+import { loadConfig } from "../config";
+import { AuthReader } from "../quota/auth-reader";
 import { CachedProvider } from "../quota/cached-provider";
-import type { HttpTransport, QuotaProvider, QuotaSnapshot } from "../quota/types";
+import type { QuotaProvider } from "../quota/types";
 import { WhamProvider } from "../quota/wham-provider";
-import type { Report } from "../report/build";
+import {
+  makeClock,
+  makeEnvSource,
+  makeFsSource,
+  makeHomeDirProvider,
+  makeHttpTransport,
+} from "../runtime";
 import type { SdkMessage } from "../session/opencode-adapter";
 import { computeReport } from "./compute";
 import { SidebarContent } from "./sidebar";
+import { createTuiSignals } from "./signals";
 import { resolveThemeColors } from "./theme";
-
-// ── Injectable runtime adapters ───────────────────────────────────────
-// Duplicated from src/index.ts — the TUI and server entry points run in
-// separate processes and intentionally do not share module instances.
-
-function makeFsSource(): FsSource {
-  return {
-    async readFile(path: string): Promise<string | null> {
-      try {
-        const { readFile } = await import("node:fs/promises");
-        return await readFile(path, "utf-8");
-      } catch (e) {
-        const err = e as NodeJS.ErrnoException;
-        if (err.code === "ENOENT") return null;
-        throw e;
-      }
-    },
-  };
-}
-
-function makeEnvSource(): EnvSource & ConfigEnv {
-  return {
-    get(key: string): string | undefined {
-      return process.env[key];
-    },
-  };
-}
-
-function makeHomeDirProvider(): HomeDirProvider {
-  return {
-    home(): string {
-      return process.env.HOME ?? process.env.USERPROFILE ?? "";
-    },
-  };
-}
-
-function makeClock(): Clock {
-  return {
-    now(): number {
-      return Date.now();
-    },
-  };
-}
-
-function makeHttpTransport(): HttpTransport {
-  return {
-    async fetch(
-      url: string,
-      options: { method: string; headers: Record<string, string>; signal: AbortSignal },
-    ) {
-      const resp = await globalThis.fetch(url, {
-        method: options.method,
-        headers: options.headers,
-        signal: options.signal,
-      });
-      return {
-        ok: resp.ok,
-        status: resp.status,
-        json: () => resp.json(),
-        text: () => resp.text(),
-      };
-    },
-  };
-}
 
 // ── TUI plugin factory ───────────────────────────────────────────────
 
@@ -127,9 +61,10 @@ export const CodexMeterTuiPlugin: TuiPlugin = async (api, _options, _meta) => {
   });
 
   // Solid signals — bridge between event handlers and JSX renderers.
-  const [report, setReport] = createSignal<Report | null>(null);
-  const [quota, setQuota] = createSignal<QuotaSnapshot | null>(null);
-  const [sessionID, setSessionID] = createSignal<string | null>(null);
+  const signals = createTuiSignals();
+  const [report, setReport] = signals.report;
+  const [quota, setQuota] = signals.quota;
+  const [sessionID, setSessionID] = signals.sessionID;
 
   const colors = resolveThemeColors(api.theme.current, config.warningPercent);
 
