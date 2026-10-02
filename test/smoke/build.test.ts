@@ -20,12 +20,18 @@ describe("build output integrity", () => {
 
   it("built package resolves server and TUI exports", async () => {
     const server = await import("opencode-codex-meter");
+    const directoryServer = await import("../../server.js");
     const tui = await import("opencode-codex-meter/tui");
 
     expect(typeof server.CodexMeterPlugin).toBe("function");
-    expect(typeof server.default).toBe("function");
+    expect(server.default.id).toBe("opencode-codex-meter");
+    expect(directoryServer.default).toEqual(server.default);
+    expect(typeof server.default.setup).toBe("function");
+    expect(typeof server.default.server).toBe("function");
     expect(typeof tui.CodexMeterTuiPlugin).toBe("function");
-    expect(tui.default).toEqual({ tui: tui.CodexMeterTuiPlugin });
+    expect(tui.default.id).toBe("opencode-codex-meter");
+    expect(typeof tui.default.setup).toBe("function");
+    expect(tui.default.tui).toBe(tui.CodexMeterTuiPlugin);
   });
 
   it("dist/tui/index.js exists after build", () => {

@@ -73,7 +73,9 @@ describe("CodexMeterPlugin factory", () => {
   });
 
   it("default export equals named export", () => {
-    expect(defaultExport).toBe(CodexMeterPlugin);
+    expect(defaultExport.server).toBe(CodexMeterPlugin);
+    expect(defaultExport.id).toBe("opencode-codex-meter");
+    expect(typeof defaultExport.setup).toBe("function");
   });
 
   it("returns empty hooks when disabled", async () => {
@@ -117,6 +119,41 @@ describe("CodexMeterPlugin factory", () => {
     } finally {
       if (original === undefined) {
         process.env.CODEX_METER_ENABLED = "";
+      } else {
+        process.env.CODEX_METER_ENABLED = original;
+      }
+    }
+  });
+
+  it("registers the V2 tool through setup", async () => {
+    const original = process.env.CODEX_METER_ENABLED;
+    process.env.CODEX_METER_ENABLED = "true";
+    let registeredTool: { name: string } | undefined;
+    let registeredRpc: { id: string; methods: Record<string, unknown> } | undefined;
+    try {
+      await defaultExport.setup({
+        tool: {
+          async transform(callback) {
+            callback({
+              add(definition) {
+                registeredTool = definition;
+              },
+            } as Parameters<typeof callback>[0]);
+          },
+        },
+        rpc: {
+          async register(definition) {
+            registeredRpc = definition;
+            return { async dispose() {} };
+          },
+        },
+      } as unknown as Parameters<typeof defaultExport.setup>[0]);
+      expect(registeredTool?.name).toBe("codex_usage");
+      expect(registeredRpc?.id).toBe("opencode-codex-meter");
+      expect(registeredRpc?.methods).toHaveProperty("quota");
+    } finally {
+      if (original === undefined) {
+        process.env.CODEX_METER_ENABLED = undefined;
       } else {
         process.env.CODEX_METER_ENABLED = original;
       }

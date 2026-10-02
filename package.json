@@ -11,7 +11,7 @@
   "main": "./dist/index.js",
   "engines": {
     "node": ">=20",
-    "opencode": ">=1.0.0 <2.0.0"
+    "opencode": ">=1.18.29"
   },
   "exports": {
     ".": {
@@ -32,6 +32,8 @@
   },
   "files": [
     "dist",
+    "server.js",
+    "tui.tsx",
     "README.md",
     "SECURITY.md"
   ],
@@ -51,6 +53,7 @@
   "dependencies": {
     "@opencode-ai/plugin": "1.18.3",
     "@opencode-ai/sdk": "1.18.3",
+    "@opencode/plugin": "2.0.22",
     "zod": "4.1.8"
   },
   "peerDependencies": {
