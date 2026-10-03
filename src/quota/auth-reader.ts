@@ -25,12 +25,13 @@ export interface Credentials {
     | "expired"
     | "missing-account-id"
     | "malformed"
-    | "unsupported";
+    | "unsupported"
+    | "unavailable";
   readonly accessToken: string | null;
   readonly expires: number | null;
   readonly accountId: string | null;
   readonly warningCode: string | null;
-  readonly source: "env" | "env-path" | "xdg" | "default" | "none";
+  readonly source: "env" | "env-path" | "xdg" | "default" | "none" | "opencode";
 }
 
 /** A "no credentials" result for when discovery fails entirely. */

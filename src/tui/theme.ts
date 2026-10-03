@@ -7,13 +7,14 @@
  * Pure function — no JSX, no Solid, fully testable.
  */
 
+import type { ColorInput } from "@opentui/core";
 import type { TuiThemeCurrent } from "./types";
 
 export interface ThemeColors {
-  readonly text: TuiThemeCurrent["text"];
-  readonly textMuted: TuiThemeCurrent["textMuted"];
-  readonly border: TuiThemeCurrent["border"];
-  readonly quotaColor: (percent: number) => TuiThemeCurrent["success"];
+  readonly text: ColorInput;
+  readonly textMuted: ColorInput;
+  readonly border: ColorInput;
+  readonly quotaColor: (percent: number) => ColorInput;
 }
 
 export function resolveThemeColors(theme: TuiThemeCurrent, warningThreshold: number): ThemeColors {

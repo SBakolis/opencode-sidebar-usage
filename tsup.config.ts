@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
+    legacy: "src/legacy.ts",
     "cli/main": "src/cli/main.ts",
   },
   format: ["esm"],
@@ -12,7 +13,7 @@ export default defineConfig({
   clean: true,
   // External: the SDK and plugin packages are runtime dependencies,
   // not bundled into dist. This avoids duplicate SDK runtimes.
-  external: ["@opencode-ai/sdk", "@opencode-ai/plugin", "zod"],
+  external: ["@opencode-ai/sdk", "@opencode-ai/plugin", "@opencode/plugin", "@opencode/client", "zod"],
   // Node.js built-ins are also external.
   noExternal: [],
 });

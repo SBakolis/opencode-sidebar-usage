@@ -6,6 +6,7 @@ type PackageManifest = {
   private?: boolean;
   license?: string;
   main?: string;
+  files?: string[];
   exports?: Record<string, { import?: string; types?: string }>;
   engines?: { node?: string; opencode?: string };
 };
@@ -18,9 +19,11 @@ describe("package manifest", () => {
   it("declares separate OpenCode server and TUI targets", () => {
     expect(manifest.private).not.toBe(true);
     expect(manifest.license).toBe("MIT");
-    expect(manifest.main).toBe("./dist/index.js");
+    expect(manifest.main).toBe("./dist/legacy.js");
+    expect(manifest.files).toContain("server.js");
+    expect(manifest.files).toContain("tui.tsx");
     expect(manifest.engines?.node).toBe(">=20");
-    expect(manifest.engines?.opencode).toBe(">=1.0.0 <2.0.0");
+    expect(manifest.engines?.opencode).toBe(">=1.0.0 <3.0.0");
     expect(manifest.exports?.["."]).toEqual({
       import: "./dist/index.js",
       types: "./dist/index.d.ts",

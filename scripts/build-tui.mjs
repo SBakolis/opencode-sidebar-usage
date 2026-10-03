@@ -16,6 +16,9 @@ const result = await Bun.build({
   external: [
     "@opencode-ai/sdk",
     "@opencode-ai/plugin",
+    "@opencode/plugin",
+    "@opencode/client",
+    "effect",
     "@opentui/core",
     "@opentui/keymap",
     "@opentui/solid",

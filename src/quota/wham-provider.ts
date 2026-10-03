@@ -121,6 +121,9 @@ export class WhamProvider implements QuotaProvider {
     if (creds.status === "unsupported") {
       return noQuotaSnapshot("unsupported", WarningCode.AUTH_REQUIRED, "chatgpt-wham");
     }
+    if (creds.status === "unavailable") {
+      return noQuotaSnapshot("unavailable", WarningCode.UNAVAILABLE, "chatgpt-wham");
+    }
     if (creds.status === "missing-account-id") {
       // The wham endpoint requires ChatGPT-Account-Id.
       return noQuotaSnapshot("unauthenticated", WarningCode.AUTH_REQUIRED, "chatgpt-wham");
