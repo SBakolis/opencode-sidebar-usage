@@ -13,11 +13,13 @@
  */
 
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui";
+import type { Plugin as V2Plugin } from "@opencode/plugin/tui";
 import { loadConfig } from "../config";
 import { AuthReader } from "../quota/auth-reader";
 import { CachedProvider } from "../quota/cached-provider";
-import type { QuotaProvider } from "../quota/types";
+import { type QuotaProvider, noQuotaSnapshot } from "../quota/types";
 import { WhamProvider } from "../quota/wham-provider";
+import { CodexMeterRpc } from "../rpc";
 import {
   makeClock,
   makeEnvSource,
@@ -197,5 +199,114 @@ export const CodexMeterTuiPlugin: TuiPlugin = async (api, _options, _meta) => {
   });
 };
 
-const tuiModule: TuiPluginModule = { tui: CodexMeterTuiPlugin };
+const setupV2: V2Plugin.Definition["setup"] = async (ctx) => {
+  const config = loadConfig(makeEnvSource());
+  if (!config.enabled) return;
+
+  const clock = makeClock();
+  const codexMeter = ctx.client.rpc(CodexMeterRpc);
+  const signals = createTuiSignals();
+  const [report, setReport] = signals.report;
+  const [quota, setQuota] = signals.quota;
+  const [sessionID, setSessionID] = signals.sessionID;
+  const surface = ctx.theme.surface("dialog");
+  const colors = {
+    text: ctx.theme.text.base,
+    textMuted: ctx.theme.text.muted,
+    border: surface.border.base,
+    quotaColor(percent: number) {
+      if (percent >= 95) return ctx.theme.text.feedback.error.base;
+      if (percent >= config.warningPercent) return ctx.theme.text.feedback.warning.base;
+      return ctx.theme.text.feedback.success.base;
+    },
+  };
+
+  function recomputeTokens(sid: string): void {
+    const messages = ctx.data.session.message.list(sid).flatMap((message): SdkMessage[] => {
+      if (message.type === "assistant") {
+        return [
+          {
+            id: message.id,
+            sessionID: sid,
+            role: "assistant" as const,
+            providerID: message.model.providerID,
+            modelID: message.model.id,
+            tokens: message.tokens ?? {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+          },
+        ];
+      }
+      if (message.type === "user") {
+        return [{ id: message.id, sessionID: sid, role: "user" as const }];
+      }
+      return [];
+    });
+    setReport(
+      computeReport(sid, messages, quota(), {
+        generatedAt: new Date(clock.now()).toISOString(),
+        warningThreshold: config.warningPercent,
+      }),
+    );
+  }
+
+  async function syncMessages(sid: string): Promise<void> {
+    try {
+      await ctx.data.session.message.sync(sid);
+      if (sid === sessionID()) recomputeTokens(sid);
+    } catch {
+      // A session read failure must not hide quota information.
+    }
+  }
+
+  async function refreshQuota(): Promise<void> {
+    try {
+      setQuota(await codexMeter.quota({}));
+      const sid = sessionID();
+      if (sid) recomputeTokens(sid);
+    } catch {
+      setQuota(noQuotaSnapshot("unavailable", "UNAVAILABLE", "chatgpt-wham"));
+      const sid = sessionID();
+      if (sid) recomputeTokens(sid);
+    }
+  }
+
+  const disposers = [
+    ctx.data.on("session.usage.updated", (event) => {
+      if (event.data.sessionID === sessionID()) void syncMessages(event.data.sessionID);
+    }),
+    ctx.data.on("session.idle", (event) => {
+      if (event.data.sessionID !== sessionID()) return;
+      void syncMessages(event.data.sessionID);
+      void refreshQuota();
+    }),
+    ctx.ui.slot({
+      append: "sidebar.content",
+      render: ({ sessionID: sid }) => {
+        if (sid !== sessionID()) {
+          setSessionID(sid);
+          if (sid) void syncMessages(sid);
+          else setReport(null);
+        }
+        return <SidebarContent report={report()} sessionID={sessionID()} colors={colors} />;
+      },
+    }),
+  ];
+
+  void refreshQuota();
+  const quotaInterval = setInterval(() => void refreshQuota(), config.quotaTtlMs);
+  return () => {
+    clearInterval(quotaInterval);
+    for (const dispose of disposers) dispose();
+  };
+};
+
+const tuiModule: TuiPluginModule & V2Plugin.Definition = {
+  id: "opencode-codex-meter",
+  setup: setupV2,
+  tui: CodexMeterTuiPlugin,
+};
 export default tuiModule;
