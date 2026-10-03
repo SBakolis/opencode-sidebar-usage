@@ -6,18 +6,44 @@
 document describes what sensitive data the plugin touches and how it
 protects it.
 
+### Credential source by OpenCode version
+
+The plugin ships one package that loads on both OpenCode plugin APIs. Where
+the OpenAI credential comes from depends on the host:
+
+| Host           | Credential source                              | Reads `auth.json` |
+| -------------- | ---------------------------------------------- | ----------------- |
+| OpenCode 1.x   | `auth.json` on disk, read by `AuthReader`      | Yes               |
+| OpenCode 2.x   | OpenCode's credential store, via the plugin API | No                |
+
+The CLI (`codex-meter`) always uses `auth.json`.
+
 ### What the plugin reads
 
-- **`auth.json`** — the OpenCode credential file at
+- **`auth.json`** (OpenCode 1.x and the CLI) — the OpenCode credential file at
   `~/.local/share/opencode/auth.json` (or `$XDG_DATA_HOME/opencode/auth.json`).
   The plugin reads **only** the OpenAI OAuth entry's `access`,
   `expires`, and `accountId` fields. It **never** reads, stores, logs,
   or returns the `refresh` token.
 
-- **Session messages** — the plugin reads assistant message token counts
-  (`input`, `output`, `reasoning`, `cache.read`, `cache.write`) via the
-  OpenCode SDK's `session.messages()` API. It does not read message
-  text, tool inputs/outputs, or file contents.
+- **OpenCode credential store** (OpenCode 2.x) — the server plugin asks
+  OpenCode for the **active `openai` connection only**
+  (`integration.connection.active("openai")`) and resolves it. OpenCode
+  returns the full credential, including the `refresh` token, to the
+  plugin in memory. The plugin keeps **only** `access`, `expires`, and
+  `metadata.accountID`, and discards everything else immediately; the
+  `refresh` token is never stored, logged, returned, or sent anywhere.
+  Non-OAuth credentials (for example an API key) are treated as
+  `unsupported` and their values are not retained. `CODEX_METER_AUTH_PATH`
+  has no effect on 2.x.
+
+- **Session messages** — the plugin uses only assistant message token
+  counts (`input`, `output`, `reasoning`, `cache.read`, `cache.write`) and
+  the provider/model IDs. On OpenCode 1.x it reads them via the SDK's
+  `session.messages()` API; on 2.x via `session.context()` (the
+  `codex_usage` tool) and the TUI's session message store (the sidebar).
+  These APIs can return full messages, but the plugin does not read,
+  store, or log message text, tool inputs/outputs, or file contents.
 
 - **Quota response** — the plugin fetches usage data from the
   unsupported `https://chatgpt.com/backend-api/wham/usage` endpoint.
@@ -30,12 +56,31 @@ protects it.
   sanitized title, expiration) for available, unexpired, plan-supported resets.
   Reset IDs, profile fields, and redemption history are discarded.
 
+### Server/TUI boundary (OpenCode 2.x)
+
+On OpenCode 2.x, only the **server** plugin touches credentials or the
+network. The TUI sidebar gets quota data from the server over a
+plugin-scoped RPC method (`opencode-codex-meter` → `quota`) and makes no
+credential lookups or network requests of its own.
+
+The RPC output is validated against a **strict** schema (`src/rpc.ts`)
+that allows only the normalized quota snapshot: usage windows, plan
+type, credit and reset-credit display fields, status, and warning code.
+Any extra field — such as an access token or account ID — fails
+validation instead of crossing the process boundary. The unit tests
+assert that a snapshot carrying an `accessToken` is rejected.
+
+On OpenCode 1.x the server and TUI run separate provider chains, each
+reading `auth.json` as described above.
+
 ### What the plugin never does
 
-- **Never writes to `auth.json`** — the plugin has no auth-write
-  capability. The `AuthReader` only reads.
+- **Never writes credentials** — the plugin has no auth-write
+  capability. The `AuthReader` only reads `auth.json`, and on 2.x the
+  plugin only calls the read-side `active` and `resolve` connection APIs.
 - **Never refreshes OAuth tokens** — the plugin does not send refresh
-  requests. OpenCode owns the credential lifecycle.
+  requests on either API. OpenCode owns the credential lifecycle; a
+  token that expires within five minutes is reported as `expired`.
 - **Never logs access tokens, refresh tokens, JWTs, account IDs, or
   Authorization headers** — all log and error paths are sanitized by
   the centralized `redact.ts` module.
@@ -95,6 +140,8 @@ output, logs, or packaged artifacts.
 | Failure                          | Expected behavior                                                         |
 | -------------------------------- | ------------------------------------------------------------------------- |
 | No OpenAI auth                   | Full session tokens; quota marked `unauthenticated`.                      |
+| Credential store error (2.x)     | Full session tokens; quota marked `unavailable`.                          |
+| Server RPC unavailable (2.x TUI) | Sidebar shows tokens; quota marked `unavailable`.                         |
 | Expired auth                     | Full session tokens; actionable auth warning; no refresh attempt.         |
 | Quota endpoint changed           | Full session tokens; quota `unavailable` or `stale` if cached.            |
 | OpenCode message rescan fails    | No crash; sanitized warning; retain last internally consistent snapshot. |
