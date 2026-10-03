@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
+    legacy: "src/legacy.ts",
     "cli/main": "src/cli/main.ts",
   },
   format: ["esm"],

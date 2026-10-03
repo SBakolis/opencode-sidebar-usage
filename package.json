@@ -8,10 +8,10 @@
     "url": "https://github.com/SBakolis/opencode-sidebar-usage.git"
   },
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/legacy.js",
   "engines": {
     "node": ">=20",
-    "opencode": ">=1.18.29"
+    "opencode": ">=1.0.0 <3.0.0"
   },
   "exports": {
     ".": {
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@opentui/solid": "0.4.4",
+    "@opentui/solid": "0.5.14",
     "@types/node": "22.10.2",
     "@vitest/coverage-v8": "2.1.8",
     "solid-js": "1.9.12",
